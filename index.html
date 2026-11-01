@@ -1,0 +1,1286 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SimplexLab — Hệ thống Giải Quy hoạch Tuyến tính & Trích xuất Báo cáo</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #F8FAFC;
+            color: #0F172A;
+        }
+        .font-mono-num {
+            font-family: 'JetBrains Mono', monospace;
+            font-variant-numeric: tabular-nums;
+        }
+        /* Custom scrollbar for wide matrices */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #F1F5F9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #CBD5E1;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94A3B8;
+        }
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+            .print-full {
+                grid-column: span 12 / span 12 !important;
+            }
+            body {
+                background-color: #FFFFFF;
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- Top Academic Header -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold font-mono-num text-lg shadow-sm">
+                    Σ
+                </div>
+                <div>
+                    <h1 class="text-base sm:text-lg font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                        SimplexLab
+                        <span class="hidden sm:inline-block text-xs font-medium px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
+                            Môn học: Tối ưu hóa
+                        </span>
+                    </h1>
+                    <p class="text-xs text-slate-500 hidden sm:block">Công cụ giải từng bước bài toán Quy hoạch tuyến tính bằng Phương pháp Đơn hình (Dantzig)</p>
+                </div>
+            </div>
+
+            <!-- Preset Loader Buttons -->
+            <div class="flex items-center gap-2 no-print flex-wrap">
+                <span class="text-xs font-medium text-slate-500 mr-1 hidden md:inline">Bộ đề mẫu:</span>
+                <button onclick="loadPreset(1)" class="text-xs font-medium px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 text-slate-700 border border-slate-200 transition">
+                    1. Wyndor Glass (2 biến)
+                </button>
+                <button onclick="loadPreset(2)" class="text-xs font-medium px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 text-slate-700 border border-slate-200 transition">
+                    2. Sản xuất (3 biến)
+                </button>
+                <button onclick="loadPreset(3)" class="text-xs font-medium px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-amber-50 hover:text-amber-700 text-slate-700 border border-slate-200 transition">
+                    3. Không bị chặn
+                </button>
+                <button onclick="window.print()" class="text-xs font-medium px-3 py-1.5 rounded-lg bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 shadow-sm transition flex items-center gap-1.5 ml-1">
+                    <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                    In Báo cáo
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+            <!-- LEFT PANEL: Problem Configuration & Input Matrix (4 cols) -->
+            <section class="lg:col-span-5 xl:col-span-4 bg-white rounded-xl border border-slate-200 shadow-sm p-5 no-print">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+                    <h2 class="text-sm font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-indigo-600"></span>
+                        1. Thiết lập mô hình toán
+                    </h2>
+                    <span class="text-xs text-slate-400 font-mono-num">Ax ≤ b, x ≥ 0</span>
+                </div>
+
+                <!-- Dimensions & Objective Type -->
+                <div class="grid grid-cols-3 gap-3 mb-5">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 mb-1">Loại mục tiêu</label>
+                        <select id="objType" onchange="updateFormulationPreview()" class="w-full rounded-lg border border-slate-300 bg-slate-50 px-2.5 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            <option value="max" selected>Max Z (Cực đại)</option>
+                            <option value="min">Min Z (Cực tiểu)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 mb-1">Số biến (n)</label>
+                        <select id="numVars" onchange="rebuildMatrixUI()" class="w-full rounded-lg border border-slate-300 bg-slate-50 px-2.5 py-2 text-xs font-semibold font-mono-num text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            <option value="2" selected>2 biến</option>
+                            <option value="3">3 biến</option>
+                            <option value="4">4 biến</option>
+                            <option value="5">5 biến</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 mb-1">Số ràng buộc (m)</label>
+                        <select id="numConstraints" onchange="rebuildMatrixUI()" class="w-full rounded-lg border border-slate-300 bg-slate-50 px-2.5 py-2 text-xs font-semibold font-mono-num text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            <option value="1">1 ràng buộc</option>
+                            <option value="2">2 ràng buộc</option>
+                            <option value="3" selected>3 ràng buộc</option>
+                            <option value="4">4 ràng buộc</option>
+                            <option value="5">5 ràng buộc</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Objective Function Input -->
+                <div class="mb-5">
+                    <label class="block text-xs font-semibold text-slate-700 mb-2">
+                        Hàm mục tiêu <span class="font-mono-num text-indigo-600">Z = c₁x₁ + c₂x₂ + ...</span>
+                    </label>
+                    <div id="objectiveInputs" class="flex flex-wrap items-center gap-2 bg-slate-50 p-3 rounded-lg border border-slate-200">
+                        <!-- Dynamically populated -->
+                    </div>
+                </div>
+
+                <!-- Constraints Matrix Input -->
+                <div class="mb-5">
+                    <div class="flex items-center justify-between mb-2">
+                        <label class="block text-xs font-semibold text-slate-700">
+                            Hệ phương trình ràng buộc <span class="font-mono-num text-slate-500">(A·x ≤ b, b ≥ 0)</span>
+                        </label>
+                    </div>
+                    <div id="constraintsInputs" class="space-y-2.5 bg-slate-50 p-3 rounded-lg border border-slate-200 overflow-x-auto">
+                        <!-- Dynamically populated -->
+                    </div>
+                </div>
+
+                <!-- Non-negativity note -->
+                <div class="flex items-center justify-between text-xs text-slate-500 bg-slate-100/80 px-3 py-2 rounded-lg mb-4">
+                    <span>Điều kiện biên mặc định:</span>
+                    <span id="nonNegText" class="font-mono-num font-semibold text-slate-700">x₁, x₂ ≥ 0</span>
+                </div>
+
+                <!-- Error Banner (No alert() used) -->
+                <div id="errorBanner" class="hidden mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-xs text-red-700 font-medium"></div>
+
+                <!-- Action Buttons -->
+                <div class="flex flex-col sm:flex-row gap-2.5">
+                    <button onclick="runSimplex('all')" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs py-2.5 px-4 rounded-lg shadow-sm transition flex items-center justify-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                        Giải toàn bộ các bước
+                    </button>
+                    <button onclick="runSimplex('step')" class="bg-slate-800 hover:bg-slate-900 text-white font-semibold text-xs py-2.5 px-4 rounded-lg shadow-sm transition flex items-center justify-center gap-1.5">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                        Chạy từng bước
+                    </button>
+                </div>
+
+                <!-- Mathematical Standard Form Preview -->
+                <div class="mt-6 pt-4 border-t border-slate-200">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Dạng chính tắc (Thêm biến bù sᵢ)</h3>
+                    <div id="canonicalPreview" class="text-xs font-mono-num bg-slate-900 text-slate-100 p-3.5 rounded-lg space-y-1 overflow-x-auto leading-relaxed">
+                        <!-- Dynamically rendered canonical equations -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- RIGHT PANEL: Step-by-Step Simplex Execution & Visuals (8 cols) -->
+            <section class="lg:col-span-7 xl:col-span-8 space-y-6 print-full">
+
+                <!-- 1. Optimal Solution Summary Banner -->
+                <div id="solutionSummaryCard" class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+                    <!-- Populated via JS -->
+                </div>
+
+                <!-- 2. View Mode & Stepper Bar -->
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex flex-wrap items-center justify-between gap-4 no-print">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-semibold text-slate-600">Chế độ xem:</span>
+                        <div class="inline-flex rounded-lg bg-slate-100 p-1 border border-slate-200">
+                            <button id="btnViewAll" onclick="setDisplayMode('all')" class="px-3 py-1 rounded-md text-xs font-semibold transition bg-white text-indigo-700 shadow-sm">
+                                Tất cả các bảng (Báo cáo)
+                            </button>
+                            <button id="btnViewStep" onclick="setDisplayMode('step')" class="px-3 py-1 rounded-md text-xs font-semibold transition text-slate-600 hover:text-slate-900">
+                                Từng bước (Trình chiếu)
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Stepper Controls (Active in 'step' mode) -->
+                    <div id="stepControls" class="hidden items-center gap-2">
+                        <button onclick="prevStep()" id="btnPrevStep" class="px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 disabled:opacity-40 transition">
+                            ← Bước trước
+                        </button>
+                        <span id="stepIndicator" class="text-xs font-mono-num font-bold px-3 py-1 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200">
+                            Bước 0 / 2
+                        </span>
+                        <button onclick="nextStep()" id="btnNextStep" class="px-2.5 py-1.5 rounded-lg border border-indigo-600 bg-indigo-600 hover:bg-indigo-700 text-xs font-semibold text-white disabled:opacity-40 transition">
+                            Bước tiếp →
+                        </button>
+                    </div>
+
+                    <!-- Legend for Tableau Colors -->
+                    <div class="flex flex-wrap items-center gap-3 text-xs">
+                        <span class="inline-flex items-center gap-1.5 text-slate-600">
+                            <span class="w-3 h-3 rounded bg-indigo-100 border border-indigo-400 inline-block"></span> Cột biến vào
+                        </span>
+                        <span class="inline-flex items-center gap-1.5 text-slate-600">
+                            <span class="w-3 h-3 rounded bg-amber-100 border border-amber-400 inline-block"></span> Hàng biến ra
+                        </span>
+                        <span class="inline-flex items-center gap-1.5 text-slate-600">
+                            <span class="w-3 h-3 rounded bg-indigo-600 inline-block"></span> Phần tử trục (Pivot)
+                        </span>
+                    </div>
+                </div>
+
+                <!-- 3. Container for Simplex Tableaus & Step Explanations -->
+                <div id="tableausContainer" class="space-y-6">
+                    <!-- Dynamically populated by JS -->
+                </div>
+
+                <!-- 4. 2D Geometric Feasible Region Graph (Only shown when n = 2) -->
+                <div id="geometricGraphCard" class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+                    <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3 mb-4">
+                        <div>
+                            <h3 class="text-sm font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                Biểu diễn Hình học Không gian 2 Chiều (x₁, x₂)
+                            </h3>
+                            <p class="text-xs text-slate-500 mt-0.5">
+                                Đa diện lồi miền chấp nhận được và quỹ đạo di chuyển của thuật toán Đơn hình qua các đỉnh cực biên
+                            </p>
+                        </div>
+                        <div class="flex items-center gap-3 text-xs">
+                            <span class="inline-flex items-center gap-1 text-slate-600">
+                                <span class="w-3 h-3 rounded-sm bg-indigo-500/20 border border-indigo-500 inline-block"></span> Miền khả thi
+                            </span>
+                            <span class="inline-flex items-center gap-1 text-slate-600">
+                                <span class="w-4 h-0.5 bg-amber-500 inline-block"></span> Đường đi Đơn hình
+                            </span>
+                            <span class="inline-flex items-center gap-1 text-slate-600">
+                                <span class="w-2.5 h-2.5 rounded-full bg-emerald-600 inline-block"></span> Đỉnh tối ưu
+                            </span>
+                        </div>
+                    </div>
+                    <div class="w-full h-80 sm:h-96 relative bg-slate-50 rounded-lg border border-slate-200 overflow-hidden">
+                        <canvas id="feasibleCanvas" class="w-full h-full block"></canvas>
+                    </div>
+                </div>
+
+            </section>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 mt-12 py-4 no-print">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-2">
+            <span>SimplexLab — Học liệu Mở Môn Tối ưu hóa (Quy hoạch tuyến tính)</span>
+            <span class="font-mono-num">Thuật toán Dantzig Simplex • Khử Gauss-Jordan</span>
+        </div>
+    </footer>
+
+    <!-- Application Logic -->
+    <script>
+        // Global State
+        let currentState = {
+            n: 2,
+            m: 3,
+            objType: 'max',
+            c: [3, 5],
+            A: [
+                [1, 0],
+                [0, 2],
+                [3, 2]
+            ],
+            b: [4, 12, 18],
+            displayMode: 'all', // 'all' or 'step'
+            activeStepIndex: 0,
+            history: [],        // Array of step snapshots
+            status: 'OPTIMAL',  // 'OPTIMAL' | 'UNBOUNDED'
+            optimalX: [],
+            optimalSlacks: [],
+            optimalZ: 0
+        };
+
+        // Format number cleanly for academic display
+        function fmtNum(val) {
+            if (val === null || val === undefined || isNaN(val)) return '-';
+            if (!isFinite(val)) return '∞';
+            if (Math.abs(val) < 1e-9) return '0';
+            // Check if close to integer
+            if (Math.abs(val - Math.round(val)) < 1e-7) {
+                return Math.round(val).toString();
+            }
+            return Number(val.toFixed(2)).toString();
+        }
+
+        // Convert number to subscript
+        function sub(index) {
+            const subs = ['₀', '₁', '₂', '₃', '₄', '₅', '₆', '₇', '₈', '₉'];
+            return index.toString().split('').map(d => subs[parseInt(d)] || d).join('');
+        }
+
+        // Build Dynamic Input Fields for Objective & Constraints
+        function rebuildMatrixUI(preserveData = false) {
+            const n = parseInt(document.getElementById('numVars').value);
+            const m = parseInt(document.getElementById('numConstraints').value);
+
+            if (!preserveData) {
+                // Resize c, A, b gracefully
+                const newC = Array(n).fill(0).map((_, j) => (currentState.c[j] !== undefined ? currentState.c[j] : 1));
+                const newA = Array(m).fill(0).map((_, i) =>
+                    Array(n).fill(0).map((__, j) => (currentState.A[i] && currentState.A[i][j] !== undefined ? currentState.A[i][j] : 1))
+                );
+                const newB = Array(m).fill(0).map((_, i) => (currentState.b[i] !== undefined ? currentState.b[i] : 10));
+
+                currentState.n = n;
+                currentState.m = m;
+                currentState.c = newC;
+                currentState.A = newA;
+                currentState.b = newB;
+            }
+
+            // Render Objective Function Inputs
+            const objContainer = document.getElementById('objectiveInputs');
+            objContainer.innerHTML = '';
+            for (let j = 0; j < n; j++) {
+                const wrap = document.createElement('div');
+                wrap.className = 'flex items-center gap-1';
+                wrap.innerHTML = `
+                    <input type="number" step="any" id="c_${j}" value="${currentState.c[j]}"
+                         oninput="syncInputsAndPreview()"
+                        class="w-16 rounded-md border border-slate-300 bg-white px-2 py-1 text-right font-mono-num text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <span class="font-mono-num text-xs font-semibold text-slate-700">x${sub(j + 1)}</span>
+                    ${j < n - 1 ? '<span class="text-slate-400 font-bold mx-0.5">+</span>' : ''}
+                `;
+                objContainer.appendChild(wrap);
+            }
+
+            // Render Constraints Matrix Inputs
+            const conContainer = document.getElementById('constraintsInputs');
+            conContainer.innerHTML = '';
+            for (let i = 0; i < m; i++) {
+                const row = document.createElement('div');
+                row.className = 'flex items-center gap-1.5 min-w-max';
+                let rowHTML = `<span class="text-[11px] font-mono-num font-semibold text-slate-400 w-6">R${i + 1}:</span>`;
+                for (let j = 0; j < n; j++) {
+                    rowHTML += `
+                        <input type="number" step="any" id="a_${i}_${j}" value="${currentState.A[i][j]}"
+                            oninput="syncInputsAndPreview()"
+                            class="w-14 rounded-md border border-slate-300 bg-white px-1.5 py-1 text-right font-mono-num text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <span class="font-mono-num text-xs text-slate-600">x${sub(j + 1)}</span>
+                        ${j < n - 1 ? '<span class="text-slate-400 text-xs">+</span>' : ''}
+                    `;
+                }
+                rowHTML += `
+                    <span class="font-mono-num text-xs font-bold text-slate-500 px-1">≤</span>
+                    <input type="number" step="any" id="b_${i}" value="${currentState.b[i]}"
+                        oninput="syncInputsAndPreview()"
+                        class="w-16 rounded-md border border-indigo-300 bg-indigo-50/40 px-2 py-1 text-right font-mono-num text-xs font-bold text-indigo-900 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                `;
+                row.innerHTML = rowHTML;
+                conContainer.appendChild(row);
+            }
+
+            // Update non-negativity text
+            const varList = Array.from({ length: n }, (_, j) => `x${sub(j + 1)}`).join(', ');
+            document.getElementById('nonNegText').textContent = `${varList} ≥ 0`;
+
+            updateFormulationPreview();
+        }
+
+        // Read inputs into state and update canonical preview
+        function syncInputsAndPreview() {
+            const n = currentState.n;
+            const m = currentState.m;
+            currentState.objType = document.getElementById('objType').value;
+
+            for (let j = 0; j < n; j++) {
+                const val = parseFloat(document.getElementById(`c_${j}`).value);
+                currentState.c[j] = isNaN(val) ? 0 : val;
+            }
+            for (let i = 0; i < m; i++) {
+                for (let j = 0; j < n; j++) {
+                    const val = parseFloat(document.getElementById(`a_${i}_${j}`).value);
+                    currentState.A[i][j] = isNaN(val) ? 0 : val;
+                }
+                const bVal = parseFloat(document.getElementById(`b_${i}`).value);
+                currentState.b[i] = isNaN(bVal) ? 0 : bVal;
+            }
+            updateFormulationPreview();
+        }
+
+        // Render Canonical Form Equations Preview
+        function updateFormulationPreview() {
+            currentState.objType = document.getElementById('objType').value;
+            const { n, m, c, A, b, objType } = currentState;
+            const preview = document.getElementById('canonicalPreview');
+
+            // Objective line: Z - c1*x1 - c2*x2 = 0
+            let zTerms = ['Z'];
+            for (let j = 0; j < n; j++) {
+                const coeff = objType === 'max' ? -c[j] : c[j];
+                if (Math.abs(coeff) > 1e-9) {
+                    const sign = coeff >= 0 ? '+' : '-';
+                    zTerms.push(`${sign} ${fmtNum(Math.abs(coeff))}x${sub(j + 1)}`);
+                }
+            }
+            let html = `<div class="text-indigo-300 font-semibold">${zTerms.join(' ')} = 0</div>`;
+            html += `<div class="border-t border-slate-800 my-1.5"></div>`;
+
+            for (let i = 0; i < m; i++) {
+                let rowTerms = [];
+                for (let j = 0; j < n; j++) {
+                    const val = A[i][j];
+                    if (Math.abs(val) > 1e-9) {
+                        const sign = val >= 0 ? (rowTerms.length === 0 ? '' : '+ ') : '- ';
+                        rowTerms.push(`${sign}${fmtNum(Math.abs(val))}x${sub(j + 1)}`);
+                    }
+                }
+                rowTerms.push(`${rowTerms.length === 0 ? '' : '+ '}1s${sub(i + 1)}`);
+                html += `<div>${rowTerms.join(' ')} = <span class="text-emerald-400 font-semibold">${fmtNum(b[i])}</span></div>`;
+            }
+
+            preview.innerHTML = html;
+        }
+
+        // Load Built-in Academic Presets
+        function loadPreset(id) {
+            if (id === 1) {
+                // Wyndor Glass Co. (Classic 2-variable problem)
+                currentState.n = 2;
+                currentState.m = 3;
+                currentState.objType = 'max';
+                currentState.c = [3, 5];
+                currentState.A = [
+                    [1, 0],
+                    [0, 2],
+                    [3, 2]
+                ];
+                currentState.b = [4, 12, 18];
+            } else if (id === 2) {
+                // 3-Variable Production Allocation Problem
+                currentState.n = 3;
+                currentState.m = 3;
+                currentState.objType = 'max';
+                currentState.c = [4, 3, 6];
+                currentState.A = [
+                    [2, 3, 2],
+                    [4, 0, 3],
+                    [2, 5, 0]
+                ];
+                currentState.b = [440, 470, 430];
+            } else if (id === 3) {
+                // Unbounded LP Example
+                currentState.n = 2;
+                currentState.m = 2;
+                currentState.objType = 'max';
+                currentState.c = [2, 3];
+                currentState.A = [
+                    [-1, 1],
+                    [-2, 1]
+                ];
+                currentState.b = [2, 1];
+            }
+
+            document.getElementById('numVars').value = currentState.n;
+            document.getElementById('numConstraints').value = currentState.m;
+            document.getElementById('objType').value = currentState.objType;
+
+            rebuildMatrixUI(true);
+            runSimplex('all');
+        }
+
+        // Core Simplex Algorithm Engine with Step-by-Step Recording
+        function runSimplex(mode = 'all') {
+            syncInputsAndPreview();
+            const { n, m, c, A, b, objType } = currentState;
+            const errorBanner = document.getElementById('errorBanner');
+            errorBanner.classList.add('hidden');
+
+            // Validate RHS b >= 0 for Standard Simplex
+            for (let i = 0; i < m; i++) {
+                if (b[i] < 0) {
+                    errorBanner.textContent = `Lỗi dữ liệu: Hệ số tự do b${sub(i + 1)} = ${b[i]} < 0. Phương pháp Đơn hình chuẩn yêu cầu bᵢ ≥ 0 (Nhân cả hai vế với -1 hoặc dùng phương pháp Big-M).`;
+                    errorBanner.classList.remove('hidden');
+                    return;
+                }
+            }
+
+            const totalCols = n + m + 1; // x1..xn, s1..sm, RHS
+            const varNames = [
+                ...Array.from({ length: n }, (_, j) => `x${sub(j + 1)}`),
+                ...Array.from({ length: m }, (_, i) => `s${sub(i + 1)}`)
+            ];
+
+            // Build initial tableau (m+1) x (n+m+1)
+            let tableau = Array.from({ length: m + 1 }, () => Array(totalCols).fill(0));
+            let basicVars = Array.from({ length: m }, (_, i) => n + i);
+
+            for (let i = 0; i < m; i++) {
+                for (let j = 0; j < n; j++) {
+                    tableau[i][j] = A[i][j];
+                }
+                tableau[i][n + i] = 1.0;
+                tableau[i][totalCols - 1] = b[i];
+            }
+
+            // Objective row (Row m): For Max Z, Δ_j = -c_j. For Min Z, we maximize Z' = -Z => Δ_j = c_j
+            for (let j = 0; j < n; j++) {
+                tableau[m][j] = objType === 'max' ? -c[j] : c[j];
+            }
+
+            const history = [];
+            let iteration = 0;
+            const maxIterations = 30;
+            let status = 'OPTIMAL';
+            let prevOperations = [
+                `Đưa bài toán về dạng chính tắc bằng cách cộng thêm ${m} biến bù (${varNames.slice(n).join(', ')}).`,
+                `Chọn các biến cơ sở ban đầu là (${varNames.slice(n).join(', ')}) tạo thành ma trận đơn vị I${sub(m)}.`,
+                `Khởi tạo phương án cực biên xuất phát tại gốc tọa độ: (${varNames.slice(0, n).join(', ')}) = (${Array(n).fill(0).join(', ')}).`
+            ];
+
+            while (iteration < maxIterations) {
+                // Deep copy current tableau and basis
+                const snapTableau = tableau.map(r => [...r]);
+                const snapBasis = [...basicVars];
+
+                // Extract current corner point (x1..xn)
+                const currentPoint = Array(n + m).fill(0);
+                for (let i = 0; i < m; i++) {
+                    currentPoint[snapBasis[i]] = snapTableau[i][totalCols - 1];
+                }
+                const rawZ = snapTableau[m][totalCols - 1];
+                const currentZ = objType === 'max' ? rawZ : -rawZ;
+
+                // 1. Check Optimality Condition (All coefficients in Z row >= 0)
+                let enteringCol = -1;
+                let minCoeff = -1e-9;
+                for (let j = 0; j < n + m; j++) {
+                    if (snapTableau[m][j] < minCoeff) {
+                        minCoeff = snapTableau[m][j];
+                        enteringCol = j;
+                    }
+                }
+
+                // If no negative coefficient in Z row => Optimal!
+                if (enteringCol === -1) {
+                    history.push({
+                        iteration,
+                        tableau: snapTableau,
+                        basicVars: snapBasis,
+                        varNames,
+                        enteringCol: -1,
+                        leavingRow: -1,
+                        pivotVal: null,
+                        ratios: Array(m).fill(null),
+                        isOptimal: true,
+                        isUnbounded: false,
+                        rowOperations: prevOperations,
+                        currentX: currentPoint.slice(0, n),
+                        currentZ
+                    });
+                    status = 'OPTIMAL';
+                    break;
+                }
+
+                // 2. Calculate Minimum Ratio Test (θ_i = RHS_i / a_{i, enteringCol})
+                const ratios = Array(m).fill(Infinity);
+                let leavingRow = -1;
+                let minRatio = Infinity;
+
+                for (let i = 0; i < m; i++) {
+                    const a_ik = snapTableau[i][enteringCol];
+                    if (a_ik > 1e-9) {
+                        const r = snapTableau[i][totalCols - 1] / a_ik;
+                        ratios[i] = r;
+                        if (r < minRatio - 1e-9) {
+                            minRatio = r;
+                            leavingRow = i;
+                        }
+                    }
+                }
+
+                // Check Unboundedness
+                if (leavingRow === -1) {
+                    history.push({
+                        iteration,
+                        tableau: snapTableau,
+                        basicVars: snapBasis,
+                        varNames,
+                        enteringCol,
+                        leavingRow: -1,
+                        pivotVal: null,
+                        ratios,
+                        isOptimal: false,
+                        isUnbounded: true,
+                        rowOperations: prevOperations,
+                        currentX: currentPoint.slice(0, n),
+                        currentZ
+                    });
+                    status = 'UNBOUNDED';
+                    break;
+                }
+
+                const pivotVal = snapTableau[leavingRow][enteringCol];
+
+                // Save current step with entering/leaving details
+                history.push({
+                    iteration,
+                    tableau: snapTableau,
+                    basicVars: snapBasis,
+                    varNames,
+                    enteringCol,
+                    leavingRow,
+                    pivotVal,
+                    ratios,
+                    isOptimal: false,
+                    isUnbounded: false,
+                    rowOperations: prevOperations,
+                    currentX: currentPoint.slice(0, n),
+                    currentZ
+                });
+
+                // 3. Perform Gauss-Jordan Pivot Operations for next tableau
+                const nextOps = [];
+                const pivotRowLabel = `R${sub(leavingRow + 1)}`;
+
+                // Normalize pivot row
+                nextOps.push(
+                    `Chuẩn hóa dòng trục (${pivotRowLabel}): ${pivotRowLabel}(mới) = ${pivotRowLabel}(cũ) / ${fmtNum(pivotVal)} (đưa phần tử trục về 1)`
+                );
+                for (let j = 0; j < totalCols; j++) {
+                    tableau[leavingRow][j] /= pivotVal;
+                }
+
+                // Eliminate other rows
+                for (let i = 0; i <= m; i++) {
+                    if (i !== leavingRow) {
+                        const factor = tableau[i][enteringCol];
+                        const rowLabel = i === m ? 'R_Z' : `R${sub(i + 1)}`;
+                        if (Math.abs(factor) > 1e-9) {
+                            const signStr = factor > 0 ? `- ${fmtNum(factor)}` : `+ ${fmtNum(Math.abs(factor))}`;
+                            nextOps.push(
+                                `Khử cột ${varNames[enteringCol]} tại dòng ${rowLabel}: ${rowLabel}(mới) = ${rowLabel}(cũ) ${signStr} × ${pivotRowLabel}(mới)`
+                            );
+                        } else {
+                            nextOps.push(
+                                `Giữ nguyên dòng ${rowLabel} vì hệ số trên cột ${varNames[enteringCol]} đã bằng 0`
+                            );
+                        }
+                        for (let j = 0; j < totalCols; j++) {
+                            tableau[i][j] -= factor * tableau[leavingRow][j];
+                        }
+                    }
+                }
+
+                basicVars[leavingRow] = enteringCol;
+                prevOperations = nextOps;
+                iteration++;
+            }
+
+            // Store results in global state
+            currentState.history = history;
+            currentState.status = status;
+
+            const lastStep = history[history.length - 1];
+            const finalVars = Array(n + m).fill(0);
+            for (let i = 0; i < m; i++) {
+                finalVars[lastStep.basicVars[i]] = lastStep.tableau[i][totalCols - 1];
+            }
+            currentState.optimalX = finalVars.slice(0, n);
+            currentState.optimalSlacks = finalVars.slice(n, n + m);
+            currentState.optimalZ = lastStep.currentZ;
+
+            setDisplayMode(mode);
+            renderSolutionSummary();
+            renderGeometricGraph();
+        }
+
+        // Switch between 'all' (Report view) and 'step' (Interactive presentation view)
+        function setDisplayMode(mode) {
+            currentState.displayMode = mode;
+            const btnAll = document.getElementById('btnViewAll');
+            const btnStep = document.getElementById('btnViewStep');
+            const stepControls = document.getElementById('stepControls');
+
+            if (mode === 'all') {
+                btnAll.className = 'px-3 py-1 rounded-md text-xs font-semibold transition bg-white text-indigo-700 shadow-sm';
+                btnStep.className = 'px-3 py-1 rounded-md text-xs font-semibold transition text-slate-600 hover:text-slate-900';
+                stepControls.classList.add('hidden');
+                stepControls.classList.remove('flex');
+            } else {
+                btnStep.className = 'px-3 py-1 rounded-md text-xs font-semibold transition bg-white text-indigo-700 shadow-sm';
+                btnAll.className = 'px-3 py-1 rounded-md text-xs font-semibold transition text-slate-600 hover:text-slate-900';
+                stepControls.classList.remove('hidden');
+                stepControls.classList.add('flex');
+                currentState.activeStepIndex = 0;
+            }
+            renderTableaus();
+            renderGeometricGraph();
+        }
+
+        function prevStep() {
+            if (currentState.activeStepIndex > 0) {
+                currentState.activeStepIndex--;
+                renderTableaus();
+                renderGeometricGraph();
+            }
+        }
+
+        function nextStep() {
+            if (currentState.activeStepIndex < currentState.history.length - 1) {
+                currentState.activeStepIndex++;
+                renderTableaus();
+                renderGeometricGraph();
+            }
+        }
+
+        // Render Top Optimal Solution Card
+        function renderSolutionSummary() {
+            const card = document.getElementById('solutionSummaryCard');
+            const { status, optimalX, optimalSlacks, optimalZ, objType, history } = currentState;
+            const totalSteps = history.length - 1;
+
+            if (status === 'UNBOUNDED') {
+                card.innerHTML = `
+                    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-amber-50/70 border border-amber-200 rounded-lg p-4">
+                        <div class="flex items-start gap-3">
+                            <div class="w-8 h-8 rounded-lg bg-amber-500 text-white flex items-center justify-center font-bold shrink-0">!</div>
+                            <div>
+                                <h3 class="text-sm font-bold text-amber-900">Bài toán Không bị chặn (Unbounded Solution)</h3>
+                                <p class="text-xs text-amber-800 mt-1">
+                                    Tại bước lặp ${totalSteps}, mọi hệ số trên cột biến vào đều âm hoặc bằng 0 (aᵢₖ ≤ 0). Miền chấp nhận được mở rộng ra vô cùng và hàm mục tiêu Z tiến tới ${objType === 'max' ? '+∞' : '-∞'}.
+                                </p>
+                            </div>
+                        </div>
+                        <span class="px-3 py-1 rounded-full text-xs font-mono-num font-bold bg-amber-100 text-amber-800 border border-amber-300 shrink-0">
+                            Z* → ${objType === 'max' ? '+∞' : '-∞'}
+                        </span>
+                    </div>
+                `;
+                return;
+            }
+
+            const decisionBadges = optimalX.map((val, j) => `
+                <div class="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 flex items-center justify-between gap-3">
+                    <span class="text-xs font-medium text-slate-500">Biến x${sub(j + 1)}</span>
+                    <span class="font-mono-num text-sm font-bold text-slate-900">${fmtNum(val)}</span>
+                </div>
+            `).join('');
+
+            const slackBadges = optimalSlacks.map((val, i) => `
+                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 font-mono-num text-xs">
+                    s${sub(i + 1)} = <strong>${fmtNum(val)}</strong>
+                </span>
+            `).join('');
+
+            card.innerHTML = `
+                <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4 mb-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-bold shadow-sm">
+                            ✓
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h2 class="text-sm font-bold text-slate-900 uppercase tracking-wide">Kết luận Nghiệm Tối ưu</h2>
+                                <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                    Hội tụ sau ${totalSteps} bước xoay
+                                </span>
+                            </div>
+                            <p class="text-xs text-slate-500 mt-0.5">
+                                Tất cả các hệ số kiểm tra trên dòng hàm mục tiêu đều không âm (Δⱼ ≥ 0)
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="bg-indigo-600 text-white px-4 py-2 rounded-lg shadow-sm text-right">
+                        <div class="text-[10px] uppercase tracking-wider text-indigo-200 font-semibold">
+                            Giá trị tối ưu (${objType === 'max' ? 'Max Z' : 'Min Z'})
+                        </div>
+                        <div class="font-mono-num text-xl font-bold leading-tight">
+                            Z* = ${fmtNum(optimalZ)}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-3">
+                    ${decisionBadges}
+                </div>
+
+                <div class="flex flex-wrap items-center justify-between gap-2 pt-2 text-xs text-slate-500">
+                    <span>Giá trị các biến bù (Độ dư nguồn lực):</span>
+                    <div class="flex flex-wrap gap-1.5">${slackBadges}</div>
+                </div>
+            `;
+        }
+
+        // Render All or Single Simplex Tableau with Academic Explanations
+        function renderTableaus() {
+            const container = document.getElementById('tableausContainer');
+            const { history, displayMode, activeStepIndex, n, m } = currentState;
+
+            // Update stepper indicator if in 'step' mode
+            if (displayMode === 'step') {
+                document.getElementById('stepIndicator').textContent = `Bước ${activeStepIndex} / ${history.length - 1}`;
+                document.getElementById('btnPrevStep').disabled = activeStepIndex === 0;
+                document.getElementById('btnNextStep').disabled = activeStepIndex === history.length - 1;
+            }
+
+            const stepsToRender = displayMode === 'all'
+                ? history
+                : [history[activeStepIndex]];
+
+            container.innerHTML = stepsToRender.map(step => buildSingleTableauHTML(step, n, m)).join('');
+        }
+
+        function buildSingleTableauHTML(step, n, m) {
+            const {
+                iteration,
+                tableau,
+                basicVars,
+                varNames,
+                enteringCol,
+                leavingRow,
+                pivotVal,
+                ratios,
+                isOptimal,
+                isUnbounded,
+                rowOperations,
+                currentX,
+                currentZ
+            } = step;
+
+            const totalCols = n + m + 1;
+
+            // Status Badge
+            let statusBadge = '';
+            if (isOptimal) {
+                statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">✓ Bảng Tối ưu (Optimal)</span>`;
+            } else if (isUnbounded) {
+                statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">! Không bị chặn (Unbounded)</span>`;
+            } else {
+                statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs font-mono-num font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                    Biến vào: ${varNames[enteringCol]} • Biến ra: ${varNames[basicVars[leavingRow]]} • Trục: ${fmtNum(pivotVal)}
+                </span>`;
+            }
+
+            // Build Row Operations Box
+            const opsListHTML = rowOperations.map(op => `<li class="flex items-start gap-2"><span class="text-indigo-500 font-bold">›</span><span>${op}</span></li>`).join('');
+
+            // Build Table Header
+            let theadHTML = `
+                <tr class="bg-slate-100/90 border-b border-slate-200 text-slate-700">
+                    <th class="py-2.5 px-3 text-left font-bold text-xs uppercase tracking-wider">Dòng</th>
+                    <th class="py-2.5 px-3 text-left font-bold text-xs uppercase tracking-wider">Cơ sở</th>
+            `;
+            for (let j = 0; j < n + m; j++) {
+                const isEnter = j === enteringCol;
+                theadHTML += `
+                    <th class="py-2.5 px-3 text-right font-mono-num text-xs font-bold ${isEnter ? 'bg-indigo-100/80 text-indigo-900' : ''}">
+                        ${varNames[j]} ${isEnter ? '↓' : ''}
+                    </th>
+                `;
+            }
+            theadHTML += `
+                    <th class="py-2.5 px-3 text-right font-mono-num text-xs font-bold bg-slate-200/50">RHS (b)</th>
+                    <th class="py-2.5 px-3 text-right font-mono-num text-xs font-bold text-slate-600">Tỷ số θ</th>
+                </tr>
+            `;
+
+            // Build Table Body Rows (Constraints 1..m)
+            let tbodyHTML = '';
+            for (let i = 0; i < m; i++) {
+                const isLeave = i === leavingRow;
+                const rowBg = isLeave ? 'bg-amber-50/70' : 'hover:bg-slate-50/80';
+
+                tbodyHTML += `<tr class="border-b border-slate-200/80 transition ${rowBg}">`;
+                tbodyHTML += `<td class="py-2.5 px-3 font-mono-num text-xs text-slate-400 font-semibold">R${sub(i + 1)}</td>`;
+                tbodyHTML += `
+                    <td class="py-2.5 px-3 font-mono-num text-xs font-bold ${isLeave ? 'text-amber-800' : 'text-slate-800'}">
+                        ${varNames[basicVars[i]]} ${isLeave ? '←' : ''}
+                    </td>
+                `;
+
+                for (let j = 0; j < n + m; j++) {
+                    const isEnter = j === enteringCol;
+                    const isPivot = isLeave && isEnter;
+                    const val = tableau[i][j];
+
+                    if (isPivot) {
+                        tbodyHTML += `
+                            <td class="py-2 px-3 text-right font-mono-num text-xs font-bold bg-indigo-100/60">
+                                <span class="inline-block px-2 py-0.5 rounded bg-indigo-600 text-white shadow-sm ring-2 ring-indigo-300">
+                                    ${fmtNum(val)}
+                                </span>
+                            </td>
+                        `;
+                    } else {
+                        tbodyHTML += `
+                            <td class="py-2.5 px-3 text-right font-mono-num text-xs ${isEnter ? 'bg-indigo-50/60 font-semibold text-indigo-950' : 'text-slate-700'}">
+                                ${fmtNum(val)}
+                            </td>
+                        `;
+                    }
+                }
+
+                // RHS column
+                tbodyHTML += `
+                    <td class="py-2.5 px-3 text-right font-mono-num text-xs font-bold bg-slate-100/60 text-slate-900">
+                        ${fmtNum(tableau[i][totalCols - 1])}
+                    </td>
+                `;
+
+                // Ratio θ column
+                let ratioText = '-';
+                if (!isOptimal && enteringCol !== -1) {
+                    const r = ratios[i];
+                    if (r === Infinity || r === null) {
+                        ratioText = '<span class="text-slate-400">—</span>';
+                    } else {
+                        const rhsStr = fmtNum(tableau[i][totalCols - 1]);
+                        const aikStr = fmtNum(tableau[i][enteringCol]);
+                        ratioText = `${rhsStr}/${aikStr} = <strong>${fmtNum(r)}</strong>`;
+                        if (isLeave) {
+                            ratioText += ` <span class="text-[10px] px-1.5 py-0.5 rounded bg-amber-200 text-amber-900 font-bold ml-1">Min</span>`;
+                        }
+                    }
+                }
+                tbodyHTML += `
+                    <td class="py-2.5 px-3 text-right font-mono-num text-xs ${isLeave ? 'text-amber-900 font-semibold' : 'text-slate-500'}">
+                        ${ratioText}
+                    </td>
+                `;
+                tbodyHTML += `</tr>`;
+            }
+
+            // Objective Z Row
+            tbodyHTML += `<tr class="bg-slate-900 text-white font-mono-num text-xs">`;
+            tbodyHTML += `<td class="py-3 px-3 text-slate-400 font-semibold">R_Z</td>`;
+            tbodyHTML += `<td class="py-3 px-3 font-bold text-indigo-300">Z</td>`;
+            for (let j = 0; j < n + m; j++) {
+                const isEnter = j === enteringCol;
+                const val = tableau[m][j];
+                tbodyHTML += `
+                    <td class="py-3 px-3 text-right font-bold ${isEnter ? 'bg-indigo-700 text-amber-300 underline decoration-2' : (val < -1e-9 ? 'text-rose-300' : 'text-slate-200')}">
+                        ${fmtNum(val)}
+                    </td>
+                `;
+            }
+            tbodyHTML += `
+                <td class="py-3 px-3 text-right font-bold text-emerald-400 bg-slate-800 text-sm">
+                    ${fmtNum(tableau[m][totalCols - 1])}
+                </td>
+                <td class="py-3 px-3 text-right text-slate-400 text-[11px]">
+                    x = (${currentX.map(fmtNum).join(', ')})
+                </td>
+            `;
+            tbodyHTML += `</tr>`;
+
+            // Analytical Commentary for the Report
+            let analysisHTML = '';
+            if (isOptimal) {
+                analysisHTML = `
+                    <div class="mt-4 p-3.5 rounded-lg bg-emerald-50/70 border border-emerald-200 text-xs text-emerald-950 space-y-1">
+                        <div class="font-bold uppercase tracking-wider text-emerald-800">Nhận xét & Kiểm tra tối ưu:</div>
+                        <p>• Quan sát dòng hàm mục tiêu <strong>R_Z</strong>: Tất cả các hệ số kiểm tra đều không âm (<strong>Δⱼ ≥ 0</strong> với mọi j).</p>
+                        <p>• Thuật toán Đơn hình kết thúc. Phương án cực biên tối ưu đạt được tại <strong>(${varNames.slice(0, n).join(', ')}) = (${currentX.map(fmtNum).join(', ')})</strong> với giá trị hàm mục tiêu <strong>Z* = ${fmtNum(currentZ)}</strong>.</p>
+                    </div>
+                `;
+            } else if (isUnbounded) {
+                analysisHTML = `
+                    <div class="mt-4 p-3.5 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-950 space-y-1">
+                        <div class="font-bold uppercase tracking-wider text-amber-800">Nhận xét & Kiểm tra tính bị chặn:</div>
+                        <p>• Biến vào cơ sở là <strong>${varNames[enteringCol]}</strong> (có hệ số âm nhỏ nhất Δ = ${fmtNum(tableau[m][enteringCol])}).</p>
+                        <p>• Tuy nhiên, mọi phần tử trên cột <strong>${varNames[enteringCol]}</strong> đều không dương (aᵢₖ ≤ 0), không thể tính tỷ số θ dương để chọn biến ra. Kết luận bài toán không bị chặn.</p>
+                    </div>
+                `;
+            } else {
+                analysisHTML = `
+                    <div class="mt-4 p-3.5 rounded-lg bg-indigo-50/50 border border-indigo-100 text-xs text-slate-700 space-y-1.5">
+                        <div class="font-bold uppercase tracking-wider text-indigo-900">Phân tích lựa chọn phép xoay (Bước ${iteration + 1}):</div>
+                        <p>1. <strong>Chọn biến vào cơ sở (Quy tắc Dantzig):</strong> Cột <strong>${varNames[enteringCol]}</strong> có hệ số âm nhỏ nhất trên dòng Z (<strong>Δ = ${fmtNum(tableau[m][enteringCol])} < 0</strong>) nên <strong>${varNames[enteringCol]}</strong> được đưa vào cơ sở.</p>
+                        <p>2. <strong>Chọn biến ra khỏi cơ sở (Kiểm tra tỷ số tối thiểu θ):</strong> Dòng <strong>R${sub(leavingRow + 1)}</strong> có tỷ số dương nhỏ nhất <strong>θ = ${fmtNum(ratios[leavingRow])}</strong>, do đó biến cơ sở <strong>${varNames[basicVars[leavingRow]]}</strong> rời khỏi cơ sở.</p>
+                        <p>3. <strong>Phần tử trục (Pivot):</strong> Giao điểm của cột <strong>${varNames[enteringCol]}</strong> và dòng <strong>R${sub(leavingRow + 1)}</strong> có giá trị bằng <strong>${fmtNum(pivotVal)}</strong>.</p>
+                    </div>
+                `;
+            }
+
+            return `
+                <article class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                    <!-- Tableau Card Header -->
+                    <div class="px-5 py-3.5 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
+                        <div class="flex items-center gap-2.5">
+                            <span class="w-6 h-6 rounded-md bg-slate-800 text-white font-mono-num text-xs font-bold flex items-center justify-center">
+                                ${iteration}
+                            </span>
+                            <h3 class="text-sm font-bold text-slate-900">
+                                ${iteration === 0 ? 'Bảng Đơn hình Khởi tạo (Bước lặp 0)' : `Bảng Đơn hình ở Bước lặp ${iteration}`}
+                            </h3>
+                        </div>
+                        ${statusBadge}
+                    </div>
+
+                    <div class="p-5">
+                        <!-- Gauss-Jordan Row Operations Used to Arrive Here -->
+                        <div class="mb-4 bg-slate-50 border border-slate-200/80 rounded-lg p-3 text-xs text-slate-600">
+                            <div class="font-bold text-slate-700 mb-1 uppercase tracking-wider text-[11px]">
+                                ${iteration === 0 ? 'Thiết lập bảng ban đầu:' : `Phép biến đổi sơ cấp Gauss-Jordan (Từ Bước ${iteration - 1} → Bước ${iteration}):`}
+                            </div>
+                            <ul class="space-y-1 font-mono-num text-[11px] text-slate-700">
+                                ${opsListHTML}
+                            </ul>
+                        </div>
+
+                        <!-- Responsive Simplex Tableau Table -->
+                        <div class="overflow-x-auto rounded-lg border border-slate-200">
+                            <table class="w-full border-collapse text-left">
+                                <thead>${theadHTML}</thead>
+                                <tbody>${tbodyHTML}</tbody>
+                            </table>
+                        </div>
+
+                        ${analysisHTML}
+                    </div>
+                </article>
+            `;
+        }
+
+        // Render 2D Feasible Region & Simplex Path on HTML5 Canvas (when n = 2)
+        function renderGeometricGraph() {
+            const card = document.getElementById('geometricGraphCard');
+            const { n, m, A, b, history, displayMode, activeStepIndex } = currentState;
+
+            if (n !== 2) {
+                card.classList.add('hidden');
+                return;
+            }
+            card.classList.remove('hidden');
+
+            const canvas = document.getElementById('feasibleCanvas');
+            const rect = canvas.parentElement.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+
+            const ctx = canvas.getContext('2d');
+            ctx.scale(dpr, dpr);
+            const W = rect.width;
+            const H = rect.height;
+
+            ctx.clearRect(0, 0, W, H);
+
+            // Determine plot bounds based on intercepts and Simplex path vertices
+            let maxX = 10;
+            let maxY = 10;
+
+            for (let i = 0; i < m; i++) {
+                if (A[i][0] > 1e-5 && b[i] > 0) maxX = Math.max(maxX, (b[i] / A[i][0]) * 1.25);
+                if (A[i][1] > 1e-5 && b[i] > 0) maxY = Math.max(maxY, (b[i] / A[i][1]) * 1.25);
+            }
+            history.forEach(st => {
+                maxX = Math.max(maxX, st.currentX[0] * 1.35 + 2);
+                maxY = Math.max(maxY, st.currentX[1] * 1.35 + 2);
+            });
+
+            maxX = Math.ceil(maxX);
+            maxY = Math.ceil(maxY);
+
+            const padLeft = 48;
+            const padRight = 28;
+            const padTop = 24;
+            const padBottom = 38;
+            const plotW = W - padLeft - padRight;
+            const plotH = H - padTop - padBottom;
+
+            const toScreenX = x => padLeft + (x / maxX) * plotW;
+            const toScreenY = y => padTop + plotH - (y / maxY) * plotH;
+
+            // 1. Draw Subtle Grid
+            ctx.strokeStyle = '#E2E8F0';
+            ctx.lineWidth = 1;
+            const numTicks = 5;
+            ctx.font = '11px "JetBrains Mono", monospace';
+            ctx.fillStyle = '#64748B';
+
+            for (let k = 0; k <= numTicks; k++) {
+                const gx = (maxX / numTicks) * k;
+                const sx = toScreenX(gx);
+                ctx.beginPath();
+                ctx.moveTo(sx, padTop);
+                ctx.lineTo(sx, padTop + plotH);
+                ctx.stroke();
+                ctx.fillText(fmtNum(gx), sx - 8, padTop + plotH + 18);
+
+                const gy = (maxY / numTicks) * k;
+                const sy = toScreenY(gy);
+                ctx.beginPath();
+                ctx.moveTo(padLeft, sy);
+                ctx.lineTo(padLeft + plotW, sy);
+                ctx.stroke();
+                ctx.fillText(fmtNum(gy), padLeft - 34, sy + 4);
+            }
+
+            // 2. Compute Feasible Region Polygon via Half-Plane Clipping
+            let poly = [
+                { x: 0, y: 0 },
+                { x: maxX, y: 0 },
+                { x: maxX, y: maxY },
+                { x: 0, y: maxY }
+            ];
+
+            function clipPolygon(polygon, a1, a2, rhs) {
+                const newPoly = [];
+                const len = polygon.length;
+                if (len === 0) return newPoly;
+
+                const inside = p => (a1 * p.x + a2 * p.y) <= rhs + 1e-7;
+                const intersect = (p1, p2) => {
+                    const v1 = a1 * p1.x + a2 * p1.y - rhs;
+                    const v2 = a1 * p2.x + a2 * p2.y - rhs;
+                    const t = v1 / (v1 - v2);
+                    return {
+                        x: p1.x + t * (p2.x - p1.x),
+                        y: p1.y + t * (p2.y - p1.y)
+                    };
+                };
+
+                for (let idx = 0; idx < len; idx++) {
+                    const curr = polygon[idx];
+                    const prev = polygon[(idx + len - 1) % len];
+                    const currIn = inside(curr);
+                    const prevIn = inside(prev);
+
+                    if (currIn) {
+                        if (!prevIn) newPoly.push(intersect(prev, curr));
+                        newPoly.push(curr);
+                    } else if (prevIn) {
+                        newPoly.push(intersect(prev, curr));
+                    }
+                }
+                return newPoly;
+            }
+
+            for (let i = 0; i < m; i++) {
+                poly = clipPolygon(poly, A[i][0], A[i][1], b[i]);
+            }
+
+            // Draw Feasible Polygon
+            if (poly.length >= 3) {
+                ctx.beginPath();
+                poly.forEach((pt, idx) => {
+                    const sx = toScreenX(pt.x);
+                    const sy = toScreenY(pt.y);
+                    if (idx === 0) ctx.moveTo(sx, sy);
+                    else ctx.lineTo(sx, sy);
+                });
+                ctx.closePath();
+                ctx.fillStyle = 'rgba(79, 70, 229, 0.14)';
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(79, 70, 229, 0.6)';
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+            }
+
+            // 3. Draw Constraint Boundary Lines
+            const lineColors = ['#6366F1', '#0EA5E9', '#8B5CF6', '#EC4899', '#14B8A6'];
+            for (let i = 0; i < m; i++) {
+                const a1 = A[i][0];
+                const a2 = A[i][1];
+                const rhs = b[i];
+                const pts = [];
+
+                // Intersect with x=0, x=maxX, y=0, y=maxY
+                if (Math.abs(a2) > 1e-7) {
+                    const y0 = rhs / a2;
+                    if (y0 >= 0 && y0 <= maxY) pts.push({ x: 0, y: y0 });
+                    const yMax = (rhs - a1 * maxX) / a2;
+                    if (yMax >= 0 && yMax <= maxY) pts.push({ x: maxX, y: yMax });
+                }
+                if (Math.abs(a1) > 1e-7) {
+                    const x0 = rhs / a1;
+                    if (x0 >= 0 && x0 <= maxX) pts.push({ x: x0, y: 0 });
+                    const xMax = (rhs - a2 * maxY) / a1;
+                    if (xMax >= 0 && xMax <= maxX) pts.push({ x: xMax, y: maxY });
+                }
+
+                if (pts.length >= 2) {
+                    ctx.beginPath();
+                    ctx.moveTo(toScreenX(pts[0].x), toScreenY(pts[0].y));
+                    ctx.lineTo(toScreenX(pts[1].x), toScreenY(pts[1].y));
+                    ctx.strokeStyle = lineColors[i % lineColors.length];
+                    ctx.lineWidth = 1.5;
+                    ctx.setLineDash([4, 4]);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+            }
+
+            // 4. Draw Axes
+            ctx.beginPath();
+            ctx.moveTo(padLeft, padTop);
+            ctx.lineTo(padLeft, padTop + plotH);
+            ctx.lineTo(padLeft + plotW, padTop + plotH);
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+
+            ctx.fillStyle = '#0F172A';
+            ctx.font = 'bold 12px "Inter", sans-serif';
+            ctx.fillText('x₁', padLeft + plotW - 14, padTop + plotH + 30);
+            ctx.fillText('x₂', padLeft - 28, padTop + 10);
+
+            // 5. Draw Simplex Trajectory Path & Corner Vertices
+            const maxStepToShow = displayMode === 'all' ? history.length - 1 : activeStepIndex;
+
+            if (history.length > 0) {
+                ctx.beginPath();
+                for (let k = 0; k <= maxStepToShow; k++) {
+                    const pt = history[k].currentX;
+                    const sx = toScreenX(pt[0]);
+                    const sy = toScreenY(pt[1]);
+                    if (k === 0) ctx.moveTo(sx, sy);
+                    else ctx.lineTo(sx, sy);
+                }
+                ctx.strokeStyle = '#F59E0B';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+
+                // Draw Vertex Dots and Coordinate Labels
+                for (let k = 0; k <= maxStepToShow; k++) {
+                    const st = history[k];
+                    const sx = toScreenX(st.currentX[0]);
+                    const sy = toScreenY(st.currentX[1]);
+                    const isFinalOpt = st.isOptimal;
+
+                    ctx.beginPath();
+                    ctx.arc(sx, sy, isFinalOpt ? 6.5 : 5, 0, Math.PI * 2);
+                    ctx.fillStyle = isFinalOpt ? '#059669' : '#D97706';
+                    ctx.fill();
+                    ctx.strokeStyle = '#FFFFFF';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+
+                    // Label
+                    ctx.font = 'bold 11px "JetBrains Mono", monospace';
+                    ctx.fillStyle = isFinalOpt ? '#065F46' : '#1E293B';
+                    const label = `B${k}:(${fmtNum(st.currentX[0])}, ${fmtNum(st.currentX[1])})`;
+                    ctx.fillText(label, sx + 8, sy - 8);
+                }
+            }
+        }
+
+        // Redraw Canvas on Window Resize
+        window.addEventListener('resize', () => {
+            if (currentState.n === 2) {
+                renderGeometricGraph();
+            }
+        });
+
+        // Initialize Default Problem on Window Load
+        window.onload = function () {
+            loadPreset(1);
+        };
+    </script>
+</body>
+</html>
